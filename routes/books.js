@@ -86,23 +86,54 @@ router
 
 router
   .route("/:id")
-  .put((req, res) => {
-    const book = oldBooks.find(b => b.id === req.params.id);
-    if (book) {
-      res
+  .put(async(req, res) => {
+    try {
+      const book = await Book.findOne({
+        where: {
+          id: req.params.id
+        },
+        include: [Author]
+      })
+      const [foundAuthor] = await Author.findOrCreate({
+        where: {
+          name: req.body.author
+        }
+      })
+
+      await book.update({title: req.body.title})
+      await book.setAuthor(foundAuthor)
+
+      const result = await Book.findOne({
+        where: {
+          id: book.id
+        },
+        include: [Author]
+      })
+      return res
         .status(202)
-        .json(req.body);
-    } else {
-      res.sendStatus(400);
+        .json(result)
+    } catch (e) {
+      res.sendStatus(400)
     }
+
   })
-  .delete((req, res) => {
-    const book = oldBooks.find(b => b.id === req.params.id);
-    if (book) {
-      res.sendStatus(202);
-    } else {
-      res.sendStatus(400);
+  .delete(async(req, res) => {
+    try {
+      const book = await Book.destroy({
+        where: {
+          id: req.params.id
+        }
+      })
+
+      if (book) {
+        res.sendStatus(202);
+      } else {
+        res.sendStatus(400);
+      }
+    } catch (e) {
+      res.sendStatus(400)
     }
+
   });
 
 module.exports = router;
