@@ -34,9 +34,18 @@ router
         include: [Author]
       })
       res.json(books)
-      //res.json(filterBooksBy("title", title));
     } else if (author) {
-      res.json(filterBooksBy("author", author));
+      const books = await Book.findAll({
+        include: [
+          {
+            model: Author,
+            where: {
+              name: author
+            }
+          }
+        ]
+      })
+      res.json(books)
     } else {
       const books = await Book.findAll({include: [Author]})
       res.json(books)
