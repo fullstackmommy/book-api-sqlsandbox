@@ -1,4 +1,3 @@
-const uuid = require("uuid/v4");
 const express = require("express");
 const router = express.Router();
 const {books: oldBooks} = require("../data/db.json");
@@ -50,26 +49,37 @@ router
   .post(verifyToken, async(req, res) => {
     try {
       const {title, author} = req.body
-      const [foundAuthor] = await Author.findOrCreate({
+
+      const foundAuthor = await Author.findOne({
         where: {
           name: author
         }
       })
-      const newBook = await Book.create({title: title})
-      await newBook.setAuthor(foundAuthor)
-      const newBookWithAuthor = await Book.findOne({
-        where: {
-          id: newBook.id
-        },
-        include: [Author]
-      })
-      res
+
+      if (!foundAuthor) {
+        const createdBook = await Book.create({
+          title,
+          author: {
+            name: author
+          }
+        }, {include: [Author]});
+        return res
+          .status(201)
+          .json(createdBook);
+      }
+      const createdBook = await Book.create({
+        title,
+        authorId: foundAuthor.id
+      }, {include: [Author]});
+
+      return res
         .status(201)
-        .json(newBookWithAuthor)
+        .json(createdBook);
+
     } catch (e) {
       res
         .status(400)
-        .json({err: `Author with name = [${author}] does not exist.`});
+        .json({err: `Author with name = [${req.body.author}] does not exist.`});
     }
 
   });
