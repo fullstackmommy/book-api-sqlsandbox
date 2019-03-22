@@ -4,10 +4,6 @@ const router = express.Router();
 const {books: oldBooks} = require("../data/db.json");
 const {Book, Author} = require('../models')
 
-const filterBooksBy = (property, value) => {
-  return oldBooks.filter(b => b[property] === value);
-};
-
 const verifyToken = (req, res, next) => {
   const {authorization} = req.headers;
   if (!authorization) {
@@ -51,12 +47,31 @@ router
       res.json(books)
     }
   })
-  .post(verifyToken, (req, res) => {
-    const book = req.body;
-    book.id = uuid();
-    res
-      .status(201)
-      .json(req.body);
+  .post(verifyToken, async(req, res) => {
+    try {
+      const {title, author} = req.body
+      const [foundAuthor] = await Author.findOrCreate({
+        where: {
+          name: author
+        }
+      })
+      const newBook = await Book.create({title: title})
+      await newBook.setAuthor(foundAuthor)
+      const newBookWithAuthor = await Book.findOne({
+        where: {
+          id: newBook.id
+        },
+        include: [Author]
+      })
+      res
+        .status(201)
+        .json(newBookWithAuthor)
+    } catch (e) {
+      res
+        .status(400)
+        .json({err: `Author with name = [${author}] does not exist.`});
+    }
+
   });
 
 router
