@@ -1,50 +1,122 @@
 const request = require("supertest");
 const app = require("../../app");
-
-const { books } = require("../../data/db.json");
+const {sequelize} = require('../../models')
+const createBooksAndAuthors = require('../../seed')
 
 const route = (params = "") => {
   const path = "/api/v1/books";
   return `${path}/${params}`;
 };
 
+beforeAll(async() => {
+  await sequelize.sync({force: true})
+  await createBooksAndAuthors()
+})
+
+afterAll(async() => {
+  await sequelize.close()
+})
+
 describe("Books", () => {
   describe("[GET] Search for books", () => {
+
+    const verifyBooks = (res, expected) => {
+      const books = res.body
+      books.forEach((book, index) => {
+        expect(book.title).toEqual(expected[index].title)
+        expect(book.author.name).toEqual(expected[index].author.name)
+      })
+    }
     test("returns all books", () => {
+      const expectedBooks = [
+        {
+          id: 1,
+          title: "Animal Farm",
+          author: {
+            name: "George Orwell"
+          }
+        }, {
+          id: 2,
+          title: "1984",
+          author: {
+            name: "George Orwell"
+          }
+        }, {
+          id: 3,
+          title: "Homage to Catalonia",
+          author: {
+            name: "George Orwell"
+          }
+        }, {
+          id: 4,
+          title: "The Road to Wigan Pier",
+          author: {
+            name: "George Orwell"
+          }
+        }, {
+          id: 5,
+          title: "Brave New World",
+          author: {
+            name: "Aldous Huxley"
+          }
+        }, {
+          id: 6,
+          title: "Fahrenheit 451",
+          author: {
+            name: "Ray Bradbury"
+          }
+        }
+      ]
+
       return request(app)
         .get(route())
         .expect("content-type", /json/)
         .expect(200)
-        .expect([
-          { id: "1", title: "Animal Farm", author: "George Orwell" },
-          { id: "2", title: "1984", author: "George Orwell" },
-          { id: "3", title: "Homage to Catalonia", author: "George Orwell" },
-          { id: "4", title: "The Road to Wigan Pier", author: "George Orwell" },
-          { id: "5", title: "Brave New World", author: "Aldous Huxley" },
-          { id: "6", title: "Fahrenheit 451", author: "Ray Bradbury" }
-        ]);
+        .expect(res => verifyBooks(res, expectedBooks));
     });
 
     test("returns books matching the title query", () => {
+      const expectedBooks = [
+        {
+          id: "2",
+          title: "1984",
+          author: {
+            name: "George Orwell"
+          }
+        }
+      ]
       return request(app)
         .get(route())
-        .query({ title: "1984" })
+        .query({title: "1984"})
         .expect("content-type", /json/)
         .expect(200)
-        .expect([{ id: "2", title: "1984", author: "George Orwell" }]);
+        .then(res => verifyBooks(res, expectedBooks))
     });
 
     test("returns books matching the author query", () => {
       return request(app)
         .get(route())
-        .query({ author: "George Orwell" })
+        .query({author: "George Orwell"})
         .expect("content-type", /json/)
         .expect(200)
         .expect([
-          { id: "1", title: "Animal Farm", author: "George Orwell" },
-          { id: "2", title: "1984", author: "George Orwell" },
-          { id: "3", title: "Homage to Catalonia", author: "George Orwell" },
-          { id: "4", title: "The Road to Wigan Pier", author: "George Orwell" }
+          {
+            id: "1",
+            title: "Animal Farm",
+            author: "George Orwell"
+          }, {
+            id: "2",
+            title: "1984",
+            author: "George Orwell"
+          }, {
+            id: "3",
+            title: "Homage to Catalonia",
+            author: "George Orwell"
+          }, {
+            id: "4",
+            title: "The Road to Wigan Pier",
+            author: "George Orwell"
+          }
         ]);
     });
   });
@@ -53,7 +125,7 @@ describe("Books", () => {
     test("deny access when no token is given", () => {
       return request(app)
         .post(route())
-        .send({ title: "The Handmaid's Tale", author: "Margaret Atwood" })
+        .send({title: "The Handmaid's Tale", author: "Margaret Atwood"})
         .catch(err => {
           expect(err.status).toBe(403);
         });
@@ -63,7 +135,7 @@ describe("Books", () => {
       return request(app)
         .post(route())
         .set("Authorization", "Bearer some-invalid-token")
-        .send({ title: "The Handmaid's Tale", author: "Margaret Atwood" })
+        .send({title: "The Handmaid's Tale", author: "Margaret Atwood"})
         .catch(res => {
           expect(res.status).toBe(403);
         });
@@ -73,7 +145,7 @@ describe("Books", () => {
       return request(app)
         .post(route())
         .set("Authorization", "Bearer my-awesome-token")
-        .send({ title: "The Handmaid's Tale", author: "Margaret Atwood" })
+        .send({title: "The Handmaid's Tale", author: "Margaret Atwood"})
         .expect(201)
         .then(res => {
           expect(res.body).toEqual({
@@ -90,28 +162,16 @@ describe("Books", () => {
       const id = "5";
       return request(app)
         .put(route(id))
-        .send({
-          id: 5,
-          title: "The Perennial Philosophy",
-          author: "Aldous Huxley"
-        })
+        .send({id: 5, title: "The Perennial Philosophy", author: "Aldous Huxley"})
         .expect(202)
-        .expect({
-          id: 5,
-          title: "The Perennial Philosophy",
-          author: "Aldous Huxley"
-        });
+        .expect({id: 5, title: "The Perennial Philosophy", author: "Aldous Huxley"});
     });
 
     test("fails as there is no such book", () => {
       const id = "100";
       return request(app)
         .put(route(id))
-        .send({
-          id: 100,
-          title: "The Perennial Philosophy",
-          author: "Aldous Huxley"
-        })
+        .send({id: 100, title: "The Perennial Philosophy", author: "Aldous Huxley"})
         .catch(res => {
           expect(res.status).toBe(400);
         });
@@ -143,7 +203,7 @@ describe("Books", () => {
         });
     });
 
-    test("fails as there is no such book", async () => {
+    test("fails as there is no such book", async() => {
       const id = "100";
       await request(app)
         .delete(route(id))

@@ -1,6 +1,9 @@
 const Sequelize = require('sequelize')
 
-const sequelize = new Sequelize("books-api", "postgres", "postgres", {dialect: "postgres"})
+const sequelize = new Sequelize("books-api", "postgres", "postgres", {
+    dialect: "postgres",
+    logging: false
+})
 
 const models = {
     Book: sequelize.import ("./Book"),

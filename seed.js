@@ -31,12 +31,7 @@ const createAuthorsAndBooks = async() => {
             }
         ]
     }, {include: [Book]})
-    await Book.create({
-        title: "ABC",
-        author: {
-            name: "George Orwell"
-        }
-    }, {include: [Author]})
+
 }
 
 module.exports = createAuthorsAndBooks
